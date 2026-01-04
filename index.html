@@ -1,0 +1,2168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Liquid Plastic OS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --accent:#4aa8ff;
+    --radius:18px;
+    --glass-opacity:0.8;
+    --glass-border-alpha:0.6;
+    --icon-glass-opacity:0.8;
+    --bg-gradient:radial-gradient(circle at top,#1d4ed8,#020617);
+    --text-main:#e5e7eb;
+    --text-sub:#9ca3af;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:#020617;
+    color:var(--text-main);
+    overflow:hidden;
+  }
+  #desktopRoot{
+    position:fixed;
+    inset:0;
+    background:var(--bg-gradient);
+    display:flex;
+    flex-direction:column;
+  }
+  .desktop{
+    position:relative;
+    flex:1;
+    overflow:hidden;
+  }
+  #desktopIcons{
+    position:absolute;
+    inset:0;
+  }
+  .icon{
+    position:absolute;
+    width:72px;
+    text-align:center;
+    font-size:11px;
+    cursor:default;
+    color:var(--text-main);
+  }
+  .icon-body{
+    width:48px;
+    height:48px;
+    margin:0 auto 4px;
+    border-radius:16px;
+    background:rgba(15,23,42,var(--icon-glass-opacity));
+    border:1px solid rgba(148,163,184,var(--glass-border-alpha));
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .icon-label{
+    text-shadow:0 1px 2px #000;
+  }
+  .icon.selected .icon-body{
+    outline:1px solid var(--accent);
+    outline-offset:1px;
+  }
+  .icon.folder .icon-body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .folder-grid-preview{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    grid-template-rows:repeat(2,1fr);
+    gap:2px;
+    width:60%;
+    height:60%;
+  }
+  .folder-grid-preview div{
+    background:rgba(148,163,184,.8);
+    border-radius:3px;
+  }
+
+  #selectBox{
+    position:absolute;
+    border:1px dashed rgba(148,163,184,.9);
+    background:rgba(59,130,246,.15);
+    pointer-events:none;
+    display:none;
+    z-index:5000;
+  }
+
+  /* Toast */
+  #toast{
+    position:fixed;
+    left:50%;
+    bottom:32px;
+    transform:translateX(-50%);
+    background:rgba(15,23,42,.96);
+    color:var(--text-main);
+    padding:6px 10px;
+    border-radius:999px;
+    border:1px solid rgba(148,163,184,.7);
+    font-size:11px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s, transform .2s;
+    z-index:6000;
+  }
+  #toast.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(-4px);
+  }
+
+  /* Taskbar */
+  #taskbar{
+    height:40px;
+    padding:4px 8px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:rgba(15,23,42,var(--glass-opacity));
+    border-top:1px solid rgba(148,163,184,var(--glass-border-alpha));
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    font-size:11px;
+  }
+  .task-left,.task-mid,.task-right{
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .task-mid{
+    flex:1;
+    justify-content:flex-start;
+    overflow:hidden;
+  }
+  .taskbar-apps{
+    overflow-x:auto;
+  }
+  .task-btn{
+    padding:4px 10px;
+    border-radius:999px;
+    border:1px solid rgba(75,85,99,.9);
+    background:rgba(15,23,42,.95);
+    color:var(--text-main);
+    font-size:11px;
+    cursor:pointer;
+  }
+  .tb-app{
+    padding:2px 10px;
+    border-radius:999px;
+    border:1px solid rgba(75,85,99,.8);
+    background:rgba(15,23,42,.9);
+    color:var(--text-main);
+    white-space:nowrap;
+    cursor:pointer;
+    margin-right:4px;
+  }
+  .tb-app.active{
+    border-color:var(--accent);
+    box-shadow:0 0 0 1px rgba(37,99,235,.4);
+  }
+  .task-clock{
+    text-align:right;
+    font-size:11px;
+  }
+  .task-clock .date{
+    font-size:10px;
+    color:var(--text-sub);
+  }
+
+  /* Start menu */
+  #startMenu{
+    position:fixed;
+    left:8px;
+    bottom:44px;
+    width:380px;
+    max-height:420px;
+    border-radius:18px;
+    background:rgba(15,23,42,var(--glass-opacity));
+    border:1px solid rgba(148,163,184,var(--glass-border-alpha));
+    backdrop-filter:blur(24px);
+    -webkit-backdrop-filter:blur(24px);
+    display:none;
+    z-index:3000;
+    overflow:hidden;
+  }
+  #startMenu .inner{
+    padding:10px;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .start-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .start-account{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    cursor:pointer;
+  }
+  .start-account-avatar{
+    width:30px;
+    height:30px;
+    border-radius:999px;
+    background:conic-gradient(from 140deg,#38bdf8,#a855f7,#f97316,#22c55e);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:700;
+    font-size:15px;
+    color:#020617;
+  }
+  .start-account-text{
+    display:flex;
+    flex-direction:column;
+    font-size:11px;
+  }
+  .start-account-name{
+    font-weight:600;
+  }
+  .start-account-sub{
+    color:var(--text-sub);
+    font-size:10px;
+  }
+  .start-header-right button{
+    font-size:11px;
+    padding:4px 8px;
+    border-radius:999px;
+    border:1px solid rgba(75,85,99,.9);
+    background:rgba(15,23,42,.95);
+    color:var(--text-main);
+    cursor:pointer;
+  }
+  .start-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:8px;
+    margin-top:6px;
+    flex:1;
+    overflow:auto;
+  }
+  .start-tile{
+    padding:8px 6px;
+    border-radius:12px;
+    border:1px solid rgba(55,65,81,.9);
+    background:rgba(15,23,42,.9);
+    font-size:11px;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    align-items:flex-start;
+    cursor:pointer;
+  }
+  .start-icon{
+    width:24px;
+    height:24px;
+    border-radius:8px;
+    background:rgba(30,64,175,.8);
+  }
+  .start-footer{
+    display:flex;
+    justify-content:space-between;
+    gap:6px;
+    margin-top:8px;
+  }
+  .start-footer button{
+    flex:1;
+    font-size:11px;
+    padding:4px 6px;
+    border-radius:999px;
+    border:1px solid rgba(55,65,81,.9);
+    background:rgba(15,23,42,.95);
+    color:var(--text-main);
+    cursor:pointer;
+  }
+
+  /* Notifications panel */
+  #notifPanel{
+    position:fixed;
+    right:8px;
+    bottom:44px;
+    width:260px;
+    max-height:360px;
+    border-radius:16px;
+    background:rgba(15,23,42,var(--glass-opacity));
+    border:1px solid rgba(148,163,184,var(--glass-border-alpha));
+    backdrop-filter:blur(24px);
+    -webkit-backdrop-filter:blur(24px);
+    display:none;
+    z-index:3000;
+    overflow:hidden;
+  }
+  #notifPanel .inner{
+    padding:8px;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .notif-list{
+    flex:1;
+    overflow:auto;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .notif{
+    padding:6px;
+    border-radius:10px;
+    border:1px solid rgba(55,65,81,.9);
+    background:rgba(15,23,42,.96);
+    font-size:11px;
+    position:relative;
+  }
+  .notif-title{
+    font-weight:600;
+    margin-bottom:2px;
+  }
+  .notif-time{
+    margin-top:2px;
+    font-size:10px;
+    color:var(--text-sub);
+  }
+  .notif-close{
+    position:absolute;
+    right:4px;
+    top:2px;
+    cursor:pointer;
+    font-size:11px;
+    color:var(--text-sub);
+  }
+
+  /* Context menu */
+  #ctxMenu{
+    position:fixed;
+    min-width:160px;
+    border-radius:10px;
+    background:rgba(15,23,42,var(--glass-opacity));
+    border:1px solid rgba(148,163,184,var(--glass-border-alpha));
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    display:none;
+    z-index:4000;
+    overflow:hidden;
+  }
+  #ctxMenu .inner{
+    padding:4px 0;
+  }
+  .ctx-item{
+    padding:4px 10px;
+    font-size:11px;
+    cursor:pointer;
+  }
+  .ctx-item:hover{
+    background:rgba(55,65,81,.95);
+  }
+
+  /* Windows */
+  .window{
+    position:absolute;
+    min-width:320px;
+    min-height:200px;
+    border-radius:var(--radius);
+    background:rgba(15,23,42,var(--glass-opacity));
+    border:1px solid rgba(148,163,184,var(--glass-border-alpha));
+    backdrop-filter:blur(24px);
+    -webkit-backdrop-filter:blur(24px);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    box-shadow:0 18px 40px rgba(0,0,0,.6);
+  }
+  .window.hidden{
+    opacity:0;
+    transform:translateY(8px) scale(.98);
+  }
+  .window.visible{
+    opacity:1;
+    transform:translateY(0) scale(1);
+    transition:opacity .18s ease-out, transform .18s ease-out;
+  }
+  .window.dragging{
+    transition:none;
+  }
+  .win-header{
+    height:30px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 8px;
+    font-size:12px;
+    border-bottom:1px solid rgba(31,41,55,.95);
+    background:linear-gradient(to bottom,rgba(15,23,42,.96),rgba(15,23,42,.92));
+    cursor:move;
+  }
+  .win-title{
+    font-weight:500;
+  }
+  .win-controls{
+    display:flex;
+    gap:4px;
+  }
+  .win-btn{
+    width:20px;
+    height:20px;
+    border-radius:6px;
+    border:1px solid rgba(55,65,81,.9);
+    background:rgba(15,23,42,.96);
+    color:var(--text-main);
+    font-size:11px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+  }
+  .win-body{
+    flex:1;
+    padding:8px;
+    overflow:auto;
+    font-size:12px;
+  }
+  .window-resize-handle{
+    position:absolute;
+    right:0;
+    bottom:0;
+    width:14px;
+    height:14px;
+    cursor:se-resize;
+  }
+  .window.maximized{
+    border-radius:0;
+  }
+
+  /* Lockscreen */
+  #lockscreen{
+    position:fixed;
+    inset:0;
+    background:radial-gradient(circle at top,#1d4ed8,#020617);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    color:var(--text-main);
+    z-index:5000;
+    opacity:0;
+    transition:opacity .25s;
+  }
+  #lockscreen.visible{
+    opacity:1;
+  }
+  .lock-main{
+    text-align:center;
+  }
+  #lockTime{
+    font-size:52px;
+    font-weight:300;
+  }
+  #lockDate{
+    margin-top:6px;
+    font-size:14px;
+    color:var(--text-sub);
+  }
+  #lockAccount{
+    margin-top:18px;
+    padding:6px 14px;
+    border-radius:999px;
+    border:1px solid rgba(148,163,184,.8);
+    background:rgba(15,23,42,.96);
+    color:var(--text-main);
+    font-size:12px;
+    cursor:pointer;
+  }
+
+  /* BIOS */
+  #bios{
+    position:fixed;
+    inset:0;
+    background:#020617;
+    color:#e5e7eb;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    font-family:monospace;
+    font-size:12px;
+    z-index:6000;
+  }
+  #bios-bar{
+    width:220px;
+    height:10px;
+    border-radius:999px;
+    border:1px solid #4b5563;
+    padding:1px;
+    margin-top:10px;
+  }
+  #bios-bar-inner{
+    height:100%;
+    border-radius:999px;
+    background:linear-gradient(90deg,#22c55e,#a3e635);
+    width:0%;
+  }
+
+  /* Settings app */
+  .settings-app{
+    display:flex;
+    height:100%;
+    gap:8px;
+  }
+  .settings-sidebar{
+    width:140px;
+    border-right:1px solid rgba(31,41,55,.95);
+    padding-right:6px;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    font-size:12px;
+  }
+  .settings-item{
+    padding:4px 6px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+  .settings-item:hover{
+    background:rgba(31,41,55,.96);
+  }
+  .settings-item-active{
+    background:rgba(31,41,55,.96);
+    border:1px solid rgba(55,65,81,.9);
+  }
+  .settings-main{
+    flex:1;
+    font-size:12px;
+    overflow:auto;
+  }
+  .settings-panel{
+    display:none;
+  }
+  .settings-panel h2{
+    font-size:15px;
+    margin-bottom:8px;
+  }
+  .settings-section{
+    margin-bottom:12px;
+  }
+  .setting-group-title{
+    font-size:12px;
+    margin-bottom:4px;
+  }
+  .setting-options{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  .settings-wall-btn,
+  .settings-accent-btn,
+  .settings-radio-btn{
+    padding:4px 8px;
+    border-radius:999px;
+    border:1px solid rgba(55,65,81,.9);
+    background:rgba(15,23,42,.95);
+    color:var(--text-main);
+    font-size:11px;
+    cursor:pointer;
+  }
+  .settings-wall-btn.active,
+  .settings-accent-btn.active,
+  .settings-radio-btn.active{
+    border-color:var(--accent);
+  }
+  .settings-toggle-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .settings-toggle{
+    width:34px;
+    height:18px;
+    border-radius:999px;
+    border:1px solid rgba(55,65,81,.9);
+    background:rgba(15,23,42,.95);
+    position:relative;
+    cursor:pointer;
+  }
+  .settings-toggle-knob{
+    position:absolute;
+    width:14px;
+    height:14px;
+    border-radius:999px;
+    background:#e5e7eb;
+    left:2px;
+    top:1px;
+    transition:transform .18s;
+  }
+  .settings-toggle.on .settings-toggle-knob{
+    transform:translateX(14px);
+  }
+
+  .theme-btn{
+    padding:4px 10px;
+    border-radius:8px;
+    border:1px solid rgba(55,65,81,.9);
+    background:rgba(15,23,42,.95);
+    color:var(--text-main);
+    font-size:11px;
+    cursor:pointer;
+  }
+
+  /* Recycle bin */
+  .recycle-bin-window{
+    display:flex;
+    flex-direction:column;
+    height:100%;
+    font-size:12px;
+  }
+  .recycle-bin-header{
+    margin-bottom:8px;
+  }
+  .rb-list{
+    flex:1;
+    overflow:auto;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .rb-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:4px 6px;
+    border-radius:8px;
+    border:1px solid rgba(31,41,55,.95);
+    background:rgba(15,23,42,.96);
+  }
+  .rb-item-actions button{
+    padding:2px 6px;
+    border-radius:999px;
+    border:1px solid rgba(55,65,81,.9);
+    background:rgba(15,23,42,.95);
+    color:var(--text-main);
+    font-size:11px;
+    cursor:pointer;
+    margin-left:4px;
+  }
+  .rb-empty-msg{
+    font-size:12px;
+    color:var(--text-sub);
+  }
+
+  /* This PC */
+  .thispc-app{
+    display:flex;
+    height:100%;
+    font-size:12px;
+  }
+  .thispc-nav{
+    width:140px;
+    border-right:1px solid rgba(31,41,55,.95);
+    padding-right:6px;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .thispc-nav-item{
+    padding:4px 6px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+  .thispc-nav-item.active{
+    background:rgba(31,41,55,.96);
+    border:1px solid rgba(55,65,81,.9);
+  }
+  .thispc-main{
+    flex:1;
+    padding-left:8px;
+    overflow:auto;
+  }
+
+  /* Store */
+  .store-app{
+    font-size:12px;
+  }
+  .store-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:8px;
+    margin-top:8px;
+  }
+  .store-card{
+    padding:8px;
+    border-radius:12px;
+    border:1px solid rgba(31,41,55,.95);
+    background:rgba(15,23,42,.96);
+  }
+  .store-card-title{
+    font-weight:600;
+    margin-bottom:4px;
+  }
+  .store-card-desc{
+    font-size:11px;
+    color:var(--text-sub);
+    margin-bottom:6px;
+  }
+  .store-card-buttons{
+    display:flex;
+    gap:6px;
+  }
+
+  /* Browser */
+  .browser-app{
+    display:flex;
+    flex-direction:column;
+    height:100%;
+  }
+  .browser-bar{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-bottom:6px;
+  }
+  .browser-tab{
+    padding:3px 8px;
+    border-radius:999px;
+    border:1px solid rgba(55,65,81,.9);
+    background:rgba(15,23,42,.95);
+    font-size:11px;
+  }
+  .browser-url{
+    flex:1;
+    padding:4px 6px;
+    border-radius:999px;
+    border:1px solid rgba(55,65,81,.9);
+    background:rgba(15,23,42,.95);
+    color:var(--text-main);
+    font-size:11px;
+    outline:none;
+  }
+  .browser-go{
+    padding:4px 8px;
+    border-radius:999px;
+    border:1px solid rgba(55,65,81,.9);
+    background:rgba(15,23,42,.95);
+    color:var(--text-main);
+    font-size:11px;
+    cursor:pointer;
+  }
+  .browser-area{
+    flex:1;
+    border-radius:10px;
+    border:1px solid rgba(31,41,55,.95);
+    background:rgba(15,23,42,.96);
+    padding:8px;
+    overflow:auto;
+    font-size:12px;
+  }
+  .browser-area iframe{
+    width:100%;
+    height:100%;
+    border:none;
+    border-radius:8px;
+  }
+
+  /* NEW NOTES APP STYLES (screenshot-style layout) */
+  .notes-app{
+    display:flex;
+    height:100%;
+    gap:8px;
+    font-size:12px;
+  }
+  .notes-sidebar{
+    width:160px;
+    border-right:1px solid rgba(31,41,55,.95);
+    padding-right:6px;
+    display:flex;
+    flex-direction:column;
+  }
+  .notes-sidebar-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:6px;
+  }
+  .notes-sidebar-title{
+    font-weight:600;
+    font-size:12px;
+  }
+  .notes-new-btn{
+    padding:3px 8px;
+    border-radius:999px;
+    border:1px solid rgba(55,65,81,.9);
+    background:rgba(15,23,42,.95);
+    color:var(--text-main);
+    font-size:11px;
+    cursor:pointer;
+  }
+  .notes-list{
+    flex:1;
+    overflow:auto;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    margin-top:2px;
+  }
+  .notes-item{
+    padding:4px 6px;
+    border-radius:8px;
+    border:1px solid transparent;
+    background:rgba(15,23,42,.0);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    cursor:pointer;
+    font-size:11px;
+  }
+  .notes-item-title{
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    margin-right:6px;
+  }
+  .notes-item-delete{
+    cursor:pointer;
+    color:var(--text-sub);
+    font-size:11px;
+  }
+  .notes-item:hover{
+    background:rgba(31,41,55,.9);
+  }
+  .notes-item.active{
+    border-color:rgba(55,65,81,.9);
+    background:rgba(31,41,55,.96);
+  }
+  .notes-main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .notes-main-header{
+    margin-bottom:6px;
+  }
+  .notes-title-input{
+    width:100%;
+    padding:4px 6px;
+    border-radius:8px;
+    border:1px solid rgba(55,65,81,.9);
+    background:rgba(15,23,42,.95);
+    color:var(--text-main);
+    font-size:12px;
+    margin-bottom:6px;
+  }
+  .notes-body-area{
+    flex:1;
+    resize:none;
+    width:100%;
+    padding:6px;
+    border-radius:10px;
+    border:1px solid rgba(31,41,55,.95);
+    background:rgba(15,23,42,.96);
+    color:var(--text-main);
+    font-size:12px;
+    font-family:inherit;
+    outline:none;
+  }
+</style>
+</head>
+<body>
+<div id="desktopRoot">
+  <div class="desktop">
+    <div id="desktopIcons"></div>
+    <div id="selectBox"></div>
+
+    <div id="startMenu">
+      <div class="inner"></div>
+    </div>
+
+    <div id="notifPanel">
+      <div class="inner"></div>
+    </div>
+
+    <div id="ctxMenu">
+      <div class="inner"></div>
+    </div>
+
+    <div id="lockscreen">
+      <div class="lock-main">
+        <div id="lockTime">--:--</div>
+        <div id="lockDate">----</div>
+        <button id="lockAccount">Curtis • Click to unlock</button>
+      </div>
+    </div>
+
+    <div id="bios">
+      <div>Liquid Plastic OS</div>
+      <div>Booting virtual glass environment...</div>
+      <div id="bios-bar">
+        <div id="bios-bar-inner"></div>
+      </div>
+    </div>
+
+  </div>
+  <div id="taskbar"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+
+/* Utility */
+function $(sel,root=document){return root.querySelector(sel);}
+function $$(sel,root=document){return Array.from(root.querySelectorAll(sel));}
+
+/* Global OS state */
+const OS={
+  config:{
+    clock24:false,
+    desktopGrid:20,
+    taskbarAutohide:false,
+    glassLevel:0.8
+  },
+  state:{
+    bootDone:false,
+    locked:false,
+    windows:[],
+    nextZ:300,
+    activeWindow:null,
+    notifications:[],
+    startMenuOpen:false,
+    notifOpen:false,
+    apps:{},
+    desktopIcons:[],
+    recycleBin:[]
+  }
+};
+
+/* Load persisted glass level if present */
+(function(){
+  try{
+    const v = localStorage.getItem("lp-glass");
+    if(v!==null){
+      const n = Number(v);
+      if(!isNaN(n) && n>0 && n<=1) OS.config.glassLevel = n;
+    }
+  }catch(e){}
+})();
+
+/* Toast + notifications */
+function showToast(msg){
+  const t=$("#toast");
+  if(!t) return;
+  t.textContent=msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2000);
+}
+function notify(title,message){
+  OS.state.notifications.unshift({
+    id:Date.now()+"-"+Math.random().toString(16).slice(2),
+    title,message,time:new Date()
+  });
+  renderNotifications();
+  renderTaskbar();
+}
+
+/* -------------------------
+   BIOS boot
+   ------------------------- */
+function startBoot(){
+  const bios = $("#bios");
+  const bar  = $("#bios-bar-inner");
+
+  if (!bios || !bar) {
+    finishBootNoBIOS();
+    return;
+  }
+
+  let progress = 0;
+  let finished = false;
+
+  function finishBootCommon(){
+    if (finished) return;
+    finished = true;
+    OS.state.bootDone = true;
+    bios.style.transition = "opacity .3s";
+    bios.style.opacity = "0";
+    setTimeout(() => {
+      bios.remove();
+      initDesktop();
+      showLockscreen(true);
+      notify("Welcome","Liquid Plastic OS 1.x ready.");
+    }, 320);
+  }
+
+  const interval = setInterval(() => {
+    if (finished) {
+      clearInterval(interval);
+      return;
+    }
+    progress += 5;
+    if (progress > 100) progress = 100;
+    bar.style.width = progress + "%";
+
+    if (progress >= 100) {
+      clearInterval(interval);
+      setTimeout(finishBootCommon, 300);
+    }
+  }, 80);
+
+  const skip = () => {
+    clearInterval(interval);
+    finishBootCommon();
+  };
+  window.addEventListener("keydown", skip, { once: true });
+  window.addEventListener("click",   skip, { once: true });
+}
+function finishBootNoBIOS(){
+  OS.state.bootDone = true;
+  initDesktop();
+  showLockscreen(true);
+  notify("Welcome","Liquid Plastic OS 1.x ready.");
+}
+
+/* -------------------------
+   Lockscreen
+   ------------------------- */
+let lockInterval=null;
+
+function updateLockTime(){
+  const now=new Date();
+  const use24=OS.config.clock24;
+  let h24=now.getHours();
+  let h=h24%12||12;
+  const m=String(now.getMinutes()).padStart(2,"0");
+  const ampm=h24>=12?"PM":"AM";
+  const lt=$("#lockTime");
+  const ld=$("#lockDate");
+  if(lt) lt.textContent = use24 ? `${String(h24).padStart(2,"0")}:${m}` : `${h}:${m} ${ampm}`;
+  if(ld){
+    const opts={weekday:"long",month:"long",day:"numeric"};
+    ld.textContent=now.toLocaleDateString(undefined,opts);
+  }
+}
+function showLockscreen(first=false){
+  OS.state.locked=true;
+  const ls=$("#lockscreen");
+  if(!ls) return;
+  ls.style.display="flex";
+  updateLockTime();
+  ls.classList.add("visible");
+
+  if(lockInterval) clearInterval(lockInterval);
+  lockInterval=setInterval(()=>{if(OS.state.locked) updateLockTime();},30000);
+
+  const unlock=()=>{
+    if(!OS.state.locked) return;
+    OS.state.locked=false;
+    ls.classList.remove("visible");
+    setTimeout(()=>{ls.style.display="none";},250);
+  };
+
+  $("#lockAccount").onclick=unlock;
+  window.onkeydown=(e)=>{ if(OS.state.locked) unlock(); };
+}
+
+/* -------------------------
+   Desktop icons
+   ------------------------- */
+function seedDesktopIcons(){
+  // All desktop icons removed per your request
+  OS.state.desktopIcons = [];
+}
+function renderDesktopIcons(){
+  const layer=$("#desktopIcons");
+  if(!layer) return;
+  layer.innerHTML="";
+  OS.state.desktopIcons.forEach((icon,index)=>{
+    const el=document.createElement("div");
+    el.className="icon";
+    if(icon.type==="folder") el.classList.add("folder");
+    el.dataset.index=index;
+    el.style.left=icon.x+"px";
+    el.style.top=icon.y+"px";
+
+    let bodyHTML='<div class="icon-body"></div>';
+    if(icon.type==="folder"){
+      bodyHTML=`
+        <div class="icon-body">
+          <div class="folder-grid-preview">
+            ${Array.from({length: Math.min(4, (icon.children||[]).length)}).map(()=>"<div></div>").join("")}
+          </div>
+        </div>`;
+    }
+    el.innerHTML= bodyHTML + `<div class="icon-label">${icon.name}</div>`;
+
+    if(icon.selected) el.classList.add("selected");
+
+    /* mousedown selection (do not start drag here) */
+    el.addEventListener("mousedown",(e)=>{
+      if(e.button!==0) return;
+      e.stopPropagation();
+      const multi=e.ctrlKey||e.metaKey||e.shiftKey;
+      if(!multi){
+        OS.state.desktopIcons.forEach(i=>i.selected=false);
+      }
+      icon.selected=!icon.selected;
+      renderDesktopIcons();
+    });
+
+    /* double click to open */
+    el.addEventListener("dblclick",()=>{
+      if(icon.type==="folder") openAppFolder(icon);
+      else if(icon.appId) openApp(icon.appId);
+    });
+
+    /* right click context menu */
+    el.addEventListener("contextmenu",(e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      showDesktopContextMenuForIcon(icon,index,e.clientX,e.clientY);
+    });
+
+    layer.appendChild(el);
+  });
+}
+
+/* -------------------------
+   App folder window
+   ------------------------- */
+function openAppFolder(folderIcon){
+  const root=document.createElement("div");
+  root.innerHTML=`
+    <h3 style="margin-bottom:6px;">${folderIcon.name}</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${ (folderIcon.children||[]).slice(0,32).map(id=>{
+        const app=OS.state.apps[id];
+        return `<button style="min-width:80px;padding:4px 6px;border-radius:8px;border:1px solid rgba(55,65,81,.9);background:rgba(15,23,42,.9);font-size:12px;cursor:pointer;">${app?app.title:id}</button>`;
+      }).join("")}
+    </div>
+  `;
+  const win=createWindow("folder-"+folderIcon.id,folderIcon.name,root);
+  $$(".win-body button",win).forEach(btn=>{
+    const text=btn.textContent;
+    const id=Object.keys(OS.state.apps).find(k=>OS.state.apps[k].title===text);
+    if(id){
+      btn.addEventListener("click",()=>openApp(id));
+    }
+  });
+}
+
+/* -------------------------
+   Selection box
+   ------------------------- */
+let selStartX=0, selStartY=0, selecting=false;
+function enableSelectionBox(){
+  const box=$("#selectBox");
+  if(!box) return;
+  document.addEventListener("mousedown",(e)=>{
+    if(e.button!==0) return;
+    if(e.target.closest(".window")) return;
+    if(e.target.closest(".icon")||e.target.closest("#taskbar")||e.target.closest("#startMenu")||e.target.closest("#notifPanel")) return;
+
+    selecting=true;
+    selStartX=e.clientX;
+    selStartY=e.clientY;
+    box.style.left=selStartX+"px";
+    box.style.top=selStartY+"px";
+    box.style.width="0px";
+    box.style.height="0px";
+    box.style.display="block";
+    OS.state.desktopIcons.forEach(i=>i.selected=false);
+    renderDesktopIcons();
+  });
+  document.addEventListener("mousemove",(e)=>{
+    if(!selecting) return;
+    const x=Math.min(selStartX,e.clientX);
+    const y=Math.min(selStartY,e.clientY);
+    const w=Math.abs(e.clientX-selStartX);
+    const h=Math.abs(e.clientY-selStartY);
+    box.style.left=x+"px";
+    box.style.top=y+"px";
+    box.style.width=w+"px";
+    box.style.height=h+"px";
+    const icons=$$(".icon");
+    icons.forEach(el=>{
+      const rect=el.getBoundingClientRect();
+      const overlap=rect.left < x+w && rect.right > x && rect.top < y+h && rect.bottom > y;
+      const idx=parseInt(el.dataset.index,10);
+      OS.state.desktopIcons[idx].selected=overlap;
+    });
+    renderDesktopIcons();
+  });
+  document.addEventListener("mouseup",()=>{
+    if(selecting){
+      selecting=false;
+      box.style.display="none";
+    }
+  });
+}
+
+/* -------------------------
+   Dragging + folder stacking
+   ------------------------- */
+let draggingIcons=false, dragStartX=0, dragStartY=0, iconStartPositions=[];
+function enableIconDragging(){
+  document.addEventListener("mousedown",(e)=>{
+    if(e.button!==0) return;
+    const iconEl=e.target.closest(".icon");
+    if(!iconEl) return;
+
+    draggingIcons=true;
+    dragStartX=e.clientX;
+    dragStartY=e.clientY;
+
+    const idx=parseInt(iconEl.dataset.index,10);
+    const icon=OS.state.desktopIcons[idx];
+
+    if(!icon.selected){
+      OS.state.desktopIcons.forEach(i=>i.selected=false);
+      icon.selected=true;
+      renderDesktopIcons();
+    }
+
+    iconStartPositions=OS.state.desktopIcons.map((i,index)=>({
+      index,
+      x:i.x,
+      y:i.y,
+      selected:i.selected
+    })).filter(i=>i.selected);
+
+    document.body.style.userSelect="none";
+  });
+
+  document.addEventListener("mousemove",(e)=>{
+    if(!draggingIcons) return;
+    const dx=e.clientX-dragStartX;
+    const dy=e.clientY-dragStartY;
+    iconStartPositions.forEach(info=>{
+      const icon=OS.state.desktopIcons[info.index];
+      icon.x=info.x+dx;
+      icon.y=info.y+dy;
+    });
+    renderDesktopIcons();
+  });
+
+  document.addEventListener("mouseup",(e)=>{
+    if(!draggingIcons) return;
+    draggingIcons=false;
+    document.body.style.userSelect="";
+
+    const grid=OS.config.desktopGrid;
+
+    const sel=OS.state.desktopIcons.filter(i=>i.selected);
+    if(sel.length===1){
+      const dragged=sel[0];
+      const draggedRect=getIconRect(dragged);
+      const target=OS.state.desktopIcons.find(i=>i!==dragged && overlapRect(draggedRect,getIconRect(i)));
+      if(target){
+        if(target.type!=="folder"){
+          const folder={
+            id:"folder-"+Date.now(),
+            name:"App Folder",
+            appId:null,
+            x:target.x,
+            y:target.y,
+            selected:false,
+            type:"folder",
+            children:[target.appId,dragged.appId].filter(Boolean)
+          };
+          OS.state.desktopIcons=OS.state.desktopIcons.filter(i=>i!==dragged && i!==target);
+          OS.state.desktopIcons.push(folder);
+        }else{
+          if(dragged.appId && !target.children.includes(dragged.appId)){
+            target.children.push(dragged.appId);
+          }
+          OS.state.desktopIcons=OS.state.desktopIcons.filter(i=>i!==dragged);
+        }
+        renderDesktopIcons();
+        return;
+      }
+    }
+
+    OS.state.desktopIcons.forEach(icon=>{
+      icon.x=Math.round(icon.x/grid)*grid;
+      icon.y=Math.round(icon.y/grid)*grid;
+    });
+    renderDesktopIcons();
+  });
+}
+function getIconRect(icon){
+  const idx=OS.state.desktopIcons.indexOf(icon);
+  const el=$(`.icon[data-index="${idx}"]`);
+  return el?el.getBoundingClientRect():{left:0,top:0,right:0,bottom:0};
+}
+function overlapRect(a,b){
+  return a.left<b.right && a.right>b.left && a.top<b.bottom && a.bottom>b.top;
+}
+
+/* -------------------------
+   Desktop context menu
+   ------------------------- */
+function showDesktopContextMenuForIcon(icon,index,x,y){
+  const menu=$("#ctxMenu");
+  const inner=menu.querySelector(".inner");
+  inner.innerHTML=`
+    <div class="ctx-item" data-act="open">Open</div>
+    <div class="ctx-item" data-act="rename">Rename</div>
+    <div class="ctx-item" data-act="pin">Pin / Unpin from Start</div>
+    <div class="ctx-item" data-act="remove">Remove from Desktop</div>
+  `;
+  menu.style.left=x+"px";
+  menu.style.top=y+"px";
+  menu.style.display="block";
+
+  inner.querySelectorAll(".ctx-item").forEach(item=>{
+    item.onclick=()=>{
+      const a=item.dataset.act;
+      if(a==="open"){
+        if(icon.type==="folder") openAppFolder(icon);
+        else if(icon.appId) openApp(icon.appId);
+      }
+      if(a==="rename"){
+        const newName=prompt("Rename:",icon.name);
+        if(newName && newName.trim()){
+          icon.name=newName.trim();
+        }
+      }
+      if(a==="pin"){
+        togglePinStart(icon.appId);
+      }
+      if(a==="remove"){
+        moveToRecycleBin(icon);
+        OS.state.desktopIcons.splice(index,1);
+        renderRecycleBinList();
+      }
+      renderDesktopIcons();
+      menu.style.display="none";
+    };
+  });
+}
+
+/* -------------------------
+   Window manager
+   ------------------------- */
+function createWindow(appId,title,contentNode){
+  const win=document.createElement("div");
+  win.className="window glass-win hidden";
+  win.dataset.appId=appId;
+
+  const header=document.createElement("div");
+  header.className="win-header";
+  header.innerHTML=`
+    <div class="win-title">${title}</div>
+    <div class="win-controls">
+      <button class="win-btn" data-min>-</button>
+      <button class="win-btn" data-max>□</button>
+      <button class="win-btn" data-close>×</button>
+    </div>
+  `;
+
+  const body=document.createElement("div");
+  body.className="win-body";
+  if(contentNode) body.appendChild(contentNode);
+
+  const resizeHandle=document.createElement("div");
+  resizeHandle.className="window-resize-handle";
+
+  win.appendChild(header);
+  win.appendChild(body);
+  win.appendChild(resizeHandle);
+  document.body.appendChild(win);
+
+  win.style.left=(140+OS.state.windows.length*28)+"px";
+  win.style.top=(80+OS.state.windows.length*22)+"px";
+  win.style.zIndex=OS.state.nextZ++;
+  OS.state.windows.push(win);
+
+  enableWindowDragging(win,header);
+  hookWindowControls(win);
+  enableWindowResize(win,resizeHandle);
+  focusWindow(win);
+
+  requestAnimationFrame(()=>{
+    win.style.display="flex";
+    win.classList.remove("hidden");
+    win.classList.add("visible");
+  });
+
+  renderTaskbar();
+  return win;
+}
+
+function focusWindow(win){
+  OS.state.windows.forEach(w=>w.style.zIndex=200);
+  win.style.zIndex=OS.state.nextZ++;
+  OS.state.activeWindow=win;
+  renderTaskbar();
+}
+
+function hookWindowControls(win){
+  const btnMin=win.querySelector("[data-min]");
+  const btnMax=win.querySelector("[data-max]");
+  const btnClose=win.querySelector("[data-close]");
+
+  btnMin.onclick=()=>{
+    win.style.display="none";
+    renderTaskbar();
+  };
+
+  btnMax.onclick=()=>{
+    if(win.classList.contains("maximized")){
+      win.classList.remove("maximized");
+      win.style.position="absolute";
+      win.style.left="140px";
+      win.style.top="80px";
+      win.style.width="";
+      win.style.height="";
+    }else{
+      win.classList.add("maximized");
+      win.style.position="fixed";
+      win.style.left="0";
+      win.style.top="0";
+      win.style.width="100vw";
+      win.style.height="100vh";
+    }
+  };
+
+  btnClose.onclick=()=>{
+    win.remove();
+    OS.state.windows=OS.state.windows.filter(w=>w!==win);
+    if(OS.state.activeWindow===win) OS.state.activeWindow=null;
+    renderTaskbar();
+  };
+
+  win.addEventListener("mousedown",()=>focusWindow(win));
+}
+
+function enableWindowDragging(win,header){
+  let dragging=false,sx=0,sy=0,wl=0,wt=0;
+
+  header.addEventListener("mousedown",(e)=>{
+    if(e.button!==0) return;
+    dragging=true;
+    sx=e.clientX;
+    sy=e.clientY;
+    const r=win.getBoundingClientRect();
+    wl=r.left;
+    wt=r.top;
+    win.classList.add("dragging");
+    document.body.style.userSelect="none";
+  });
+
+  document.addEventListener("mousemove",(e)=>{
+    if(!dragging) return;
+    const dx=e.clientX-sx;
+    const dy=e.clientY-sy;
+    win.style.left=wl+dx+"px";
+    win.style.top=wt+dy+"px";
+  });
+
+  document.addEventListener("mouseup",()=>{
+    if(!dragging) return;
+    dragging=false;
+    win.classList.remove("dragging");
+    document.body.style.userSelect="";
+  });
+}
+
+function enableWindowResize(win,handle){
+  let resizing=false,startX=0,startY=0,startW=0,startH=0;
+
+  handle.addEventListener("mousedown",(e)=>{
+    e.stopPropagation();
+    e.preventDefault();
+    resizing=true;
+    startX=e.clientX;
+    startY=e.clientY;
+    const rect=win.getBoundingClientRect();
+    startW=rect.width;
+    startH=rect.height;
+    document.body.style.userSelect="none";
+  });
+
+  document.addEventListener("mousemove",(e)=>{
+    if(!resizing) return;
+    const dx=e.clientX-startX;
+    const dy=e.clientY-startY;
+    win.style.width=Math.max(320,startW+dx)+"px";
+    win.style.height=Math.max(200,startH+dy)+"px";
+  });
+
+  document.addEventListener("mouseup",()=>{
+    if(!resizing) return;
+    resizing=false;
+    document.body.style.userSelect="";
+  });
+}
+
+/* -------------------------
+   App registry
+   ------------------------- */
+function registerApp(id,def){OS.state.apps[id]=def;}
+function openApp(id){
+  const app=OS.state.apps[id];
+  if(!app){
+    showToast(`App "${id}" is not installed.`);
+    return null;
+  }
+  const existing=OS.state.windows.find(w=>w.dataset.appId===id);
+  if(existing){
+    existing.style.display="flex";
+    focusWindow(existing);
+    return existing;
+  }
+  const content=app.createContent();
+  const win=createWindow(id,app.title,content);
+  return win;
+}
+
+/* -------------------------
+   NEW Notes App (Screenshot-style)
+   ------------------------- */
+registerApp("notes",{
+  title:"Notes",
+  createContent(){
+    const root=document.createElement("div");
+    root.className="notes-app";
+
+    root.innerHTML=`
+      <div class="notes-sidebar">
+        <div class="notes-sidebar-header">
+          <div class="notes-sidebar-title">All notes</div>
+          <button class="notes-new-btn">New</button>
+        </div>
+        <div class="notes-list"></div>
+      </div>
+
+      <div class="notes-main">
+        <div class="notes-main-header">
+          <input class="notes-title-input" placeholder="Title">
+        </div>
+        <textarea class="notes-body-area" placeholder="Write something..."></textarea>
+      </div>
+    `;
+
+    const listEl=root.querySelector(".notes-list");
+    const titleEl=root.querySelector(".notes-title-input");
+    const bodyEl=root.querySelector(".notes-body-area");
+    const newBtn=root.querySelector(".notes-new-btn");
+
+    let notes = JSON.parse(localStorage.getItem("lp-notes-v2") || "[]");
+    let currentIndex = -1;
+
+    function save(){
+      localStorage.setItem("lp-notes-v2", JSON.stringify(notes));
+    }
+
+    function renderList(){
+      listEl.innerHTML="";
+      notes.forEach((n,i)=>{
+        const item=document.createElement("div");
+        item.className="notes-item"+(i===currentIndex?" active":"");
+        item.innerHTML=`
+          <div class="notes-item-title">${n.title || "Untitled"}</div>
+          <div class="notes-item-delete">🗑</div>
+        `;
+        item.onclick=(e)=>{
+          if(e.target.classList.contains("notes-item-delete")){
+            notes.splice(i,1);
+            if(currentIndex===i) currentIndex=-1;
+            save();
+            renderList();
+            renderEditor();
+            return;
+          }
+          currentIndex=i;
+          renderList();
+          renderEditor();
+        };
+        listEl.appendChild(item);
+      });
+    }
+
+    function renderEditor(){
+      if(currentIndex<0){
+        titleEl.value="";
+        bodyEl.value="";
+        return;
+      }
+      const n=notes[currentIndex];
+      titleEl.value=n.title;
+      bodyEl.value=n.body;
+    }
+
+    newBtn.onclick=()=>{
+      notes.push({title:"New note",body:""});
+      currentIndex=notes.length-1;
+      save();
+      renderList();
+      renderEditor();
+    };
+
+    titleEl.oninput=()=>{
+      if(currentIndex>=0){
+        notes[currentIndex].title=titleEl.value;
+        save();
+        renderList();
+      }
+    };
+
+    bodyEl.oninput=()=>{
+      if(currentIndex>=0){
+        notes[currentIndex].body=bodyEl.value;
+        save();
+      }
+    };
+
+    renderList();
+    renderEditor();
+
+    return root;
+  }
+});
+
+/* -------------------------
+   Browser app with Google CSE
+   ------------------------- */
+registerApp("browser",{
+  title:"Liquid Plastic Browser",
+  createContent(){
+    const root=document.createElement("div");
+    root.className="browser-app";
+    root.innerHTML=`
+      <div class="browser-bar">
+        <div class="browser-tab"><span>LP X</span></div>
+        <input class="browser-url" placeholder="lp://home or search...">
+        <button class="browser-go">Go</button>
+      </div>
+      <div class="browser-area"></div>
+    `;
+    setupLPBrowser(root);
+    return root;
+  }
+});
+
+function setupLPBrowser(root){
+  const urlInput=root.querySelector(".browser-url");
+  const goBtn=root.querySelector(".browser-go");
+  const area=root.querySelector(".browser-area");
+
+  function renderLPPage(url){
+    const page=url.toLowerCase();
+
+    if(page.startsWith("lp://")){
+      if(page==="lp://home"){
+        area.innerHTML=`
+          <h2>Liquid Plastic Browser</h2>
+          <p>Type anything to search using Google CSE.</p>
+          <p>Try: <strong>lp://about</strong>, <strong>lp://apps</strong></p>
+        `;
+        return;
+      }
+      if(page==="lp://about"){
+        area.innerHTML=`<h2>About</h2><p>Liquid Plastic OS Browser.</p>`;
+        return;
+      }
+      if(page==="lp://apps"){
+        const apps=Object.keys(OS.state.apps).map(id=>OS.state.apps[id].title).join(", ");
+        area.innerHTML=`<h2>Installed Apps</h2><p>${apps}</p>`;
+        return;
+      }
+      area.innerHTML=`<h2>Unknown LP page</h2><p>${url}</p>`;
+      return;
+    }
+
+    runGoogleSearch(url);
+  }
+
+  async function runGoogleSearch(query){
+    const cx="41f9b115ed19d47de";
+    const key="YOUR_API_KEY_HERE"; // You will insert your API key here
+
+    area.innerHTML=`<p>Searching...</p>`;
+
+    try{
+      const res=await fetch(`https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&q=${encodeURIComponent(query)}`);
+      const data=await res.json();
+
+      if(!data.items){
+        area.innerHTML=`<p>No results.</p>`;
+        return;
+      }
+
+      area.innerHTML=data.items.map(item=>`
+        <div style="margin-bottom:12px;">
+          <div style="font-weight:600;font-size:13px;cursor:pointer;color:var(--accent);" data-url="${item.link}">
+            ${item.title}
+          </div>
+          <div style="font-size:11px;color:var(--text-sub);">${item.snippet}</div>
+        </div>
+      `).join("");
+
+      area.querySelectorAll("[data-url]").forEach(el=>{
+        el.onclick=()=>{
+          urlInput.value=el.dataset.url;
+          renderExternalPage(el.dataset.url);
+        };
+      });
+
+    }catch(e){
+      area.innerHTML=`<p>Error loading results.</p>`;
+    }
+  }
+
+  function renderExternalPage(url){
+    area.innerHTML=`<iframe src="${url}"></iframe>`;
+  }
+
+  function navigate(){
+    const v=urlInput.value.trim();
+    if(!v) return;
+    renderLPPage(v);
+  }
+
+  goBtn.onclick=navigate;
+  urlInput.addEventListener("keydown",e=>{
+    if(e.key==="Enter") navigate();
+  });
+
+  renderLPPage("lp://home");
+}
+
+/* -------------------------
+   Settings app (root-scoped)
+   ------------------------- */
+registerApp("settings",{
+  title:"Settings",
+  createContent(){
+    const root=document.createElement("div");
+    root.className="settings-app";
+    root.innerHTML=`
+      <div class="settings-sidebar">
+        <div class="settings-item" data-panel="appearance">Appearance</div>
+        <div class="settings-item" data-panel="system">System</div>
+        <div class="settings-item" data-panel="account">Account</div>
+        <div class="settings-item" data-panel="glass">Glass</div>
+      </div>
+      <div class="settings-main">
+        <div class="settings-panel" data-panel-id="appearance"></div>
+        <div class="settings-panel" data-panel-id="system"></div>
+        <div class="settings-panel" data-panel-id="account"></div>
+        <div class="settings-panel" data-panel-id="glass"></div>
+      </div>
+    `;
+    setupSettings(root);
+    return root;
+  }
+});
+
+function setupSettings(root){
+  const items=Array.from(root.querySelectorAll(".settings-item"));
+  const panels={
+    appearance: root.querySelector('.settings-panel[data-panel-id="appearance"]'),
+    system:     root.querySelector('.settings-panel[data-panel-id="system"]'),
+    account:    root.querySelector('.settings-panel[data-panel-id="account"]'),
+    glass:      root.querySelector('.settings-panel[data-panel-id="glass"]')
+  };
+
+  renderAppearancePanel(panels.appearance);
+  renderSystemPanel(panels.system);
+  renderAccountPanel(panels.account);
+  renderGlassPanel(panels.glass);
+
+  function showSettingsPanel(name){
+    Object.values(panels).forEach(p=>{ if(p) p.style.display="none"; });
+    if(panels[name]) panels[name].style.display="block";
+  }
+
+  items.forEach(it=>{
+    it.onclick=()=>{
+      items.forEach(i=>i.classList.remove("settings-item-active"));
+      it.classList.add("settings-item-active");
+      showSettingsPanel(it.dataset.panel);
+    };
+  });
+
+  items[0].classList.add("settings-item-active");
+  showSettingsPanel("appearance");
+}
+
+/* -------------------------
+   Appearance Panel
+   ------------------------- */
+function renderAppearancePanel(panel){
+  if(!panel) return;
+  panel.innerHTML=`
+    <h2>Appearance</h2>
+    <div class="settings-section">
+      <div class="setting-group-title">Wallpaper</div>
+      <div class="setting-options">
+        <button class="settings-wall-btn" data-wall="default">Default</button>
+        <button class="settings-wall-btn" data-wall="aurora">Aurora</button>
+        <button class="settings-wall-btn" data-wall="forest">Forest</button>
+        <button class="settings-wall-btn" data-wall="sunset">Sunset</button>
+        <button class="settings-wall-btn" data-wall="mono">Mono</button>
+        <button class="settings-wall-btn" data-wall="upload">Upload wallpaper</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="setting-group-title">Accent color</div>
+      <div class="setting-options">
+        <button class="settings-accent-btn" data-accent="#4aa8ff">Blue</button>
+        <button class="settings-accent-btn" data-accent="#22c55e">Green</button>
+        <button class="settings-accent-btn" data-accent="#f97316">Orange</button>
+        <button class="settings-accent-btn" data-accent="#ec4899">Pink</button>
+        <button class="settings-accent-btn" data-accent="#a855f7">Purple</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="setting-group-title">Window corners</div>
+      <div class="setting-options">
+        <button class="settings-radio-btn" data-corners="rounded">Rounded</button>
+        <button class="settings-radio-btn" data-corners="sharp">Sharp</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="setting-group-title">Clock format</div>
+      <div class="setting-options">
+        <button class="settings-radio-btn" data-clock="12">12 hour</button>
+        <button class="settings-radio-btn" data-clock="24">24 hour</button>
+      </div>
+    </div>
+  `;
+
+  const desktopRoot=$("#desktopRoot");
+
+  panel.querySelectorAll(".settings-wall-btn").forEach(btn=>{
+    btn.onclick=()=>{
+      const w=btn.dataset.wall;
+      if(desktopRoot){
+        if(w==="default") desktopRoot.style.background= "var(--bg-gradient)";
+        if(w==="aurora") desktopRoot.style.background= "radial-gradient(circle at top,#1e3a8a,#020617)";
+        if(w==="forest") desktopRoot.style.background= "radial-gradient(circle at top,#064e3b,#020617)";
+        if(w==="sunset") desktopRoot.style.background= "radial-gradient(circle at top,#b91c1c,#020617)";
+        if(w==="mono") desktopRoot.style.background= "radial-gradient(circle at top,#111827,#020617)";
+      }
+      if(w==="upload") showToast("Upload wallpaper not implemented yet.");
+      panel.querySelectorAll(".settings-wall-btn").forEach(x=>x.classList.remove("active"));
+      btn.classList.add("active");
+    };
+  });
+
+  panel.querySelectorAll(".settings-accent-btn").forEach(btn=>{
+    btn.onclick=()=>{
+      const c=btn.dataset.accent;
+      document.documentElement.style.setProperty("--accent",c);
+      panel.querySelectorAll(".settings-accent-btn").forEach(x=>x.classList.remove("active"));
+      btn.classList.add("active");
+    };
+  });
+
+  panel.querySelectorAll(".settings-radio-btn[data-corners]").forEach(btn=>{
+    btn.onclick=()=>{
+      const v=btn.dataset.corners;
+      document.documentElement.style.setProperty("--radius", v==="rounded" ? "18px" : "4px");
+      panel.querySelectorAll(".settings-radio-btn[data-corners]").forEach(x=>x.classList.remove("active"));
+      btn.classList.add("active");
+    };
+  });
+
+  panel.querySelectorAll(".settings-radio-btn[data-clock]").forEach(btn=>{
+    btn.onclick=()=>{
+      const v=btn.dataset.clock;
+      OS.config.clock24 = (v==="24");
+      updateClock();
+      updateLockTime();
+      panel.querySelectorAll(".settings-radio-btn[data-clock]").forEach(x=>x.classList.remove("active"));
+      btn.classList.add("active");
+    };
+  });
+}
+
+/* -------------------------
+   System Panel
+   ------------------------- */
+function renderSystemPanel(panel){
+  if(!panel) return;
+  panel.innerHTML=`
+    <h2>System</h2>
+    <div class="settings-section">
+      <div class="settings-toggle-row">
+        <div class="settings-toggle" id="sysTaskbarAuto"><div class="settings-toggle-knob"></div></div>
+        <div>Taskbar auto-hide</div>
+      </div>
+      <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">
+        Hide taskbar until cursor is at the bottom edge. (Visual only in this build.)
+      </div>
+    </div>
+    <div class="settings-section" style="margin-top:16px;font-size:11px;color:var(--text-sub);">
+      More system settings can go here later.
+    </div>
+  `;
+
+  const toggle=panel.querySelector("#sysTaskbarAuto");
+  function updateToggle(){toggle.classList.toggle("on",OS.config.taskbarAutohide);}
+  toggle.onclick=()=>{
+    OS.config.taskbarAutohide=!OS.config.taskbarAutohide;
+    updateToggle();
+    showToast("Taskbar auto-hide is visual only in this build.");
+    notify("System","Taskbar auto-hide toggled (visual only).");
+  };
+  updateToggle();
+}
+
+/* -------------------------
+   Account Panel
+   ------------------------- */
+function renderAccountPanel(panel){
+  if(!panel) return;
+  panel.innerHTML=`
+    <h2>Account</h2>
+    <div class="settings-section">
+      <div class="setting-row">
+        <div style="margin-bottom:4px;">Current profile picture</div>
+        <div style="width:42px;height:42px;border-radius:999px;background:conic-gradient(from 140deg,#38bdf8,#a855f7,#f97316,#22c55e);display:flex;align-items:center;justify-content:center;color:#020617;font-weight:700;font-size:18px;">C</div>
+      </div>
+      <div class="setting-row">
+        <div>Account name</div>
+        <input type="text" value="Curtis" style="width:200px;padding:4px;border-radius:6px;border:1px solid rgba(75,85,99,.9);background:rgba(15,23,42,.95);color:var(--text-main);font-size:12px;">
+      </div>
+      <div class="setting-row">
+        <div>Avatar initials</div>
+        <input type="text" value="C" style="width:40px;padding:4px;border-radius:6px;border:1px solid rgba(75,85,99,.9);background:rgba(15,23,42,.95);color:var(--text-main);font-size:12px;">
+      </div>
+      <div class="setting-row">
+        <div>Avatar picture</div>
+        <button class="theme-btn">Upload profile picture</button>
+      </div>
+      <div class="setting-row">
+        <div class="settings-toggle-row">
+          <div class="settings-toggle" id="accPwOnUnlock"><div class="settings-toggle-knob"></div></div>
+          <div>Require password on unlock</div>
+        </div>
+      </div>
+      <div class="setting-row">
+        <label style="font-size:12px;"><input type="checkbox"> Prompt for password on lockscreen</label>
+      </div>
+      <div class="setting-row">
+        <div>Password</div>
+        <button class="theme-btn">Set password</button>
+      </div>
+    </div>
+  `;
+  panel.querySelector("#accPwOnUnlock").onclick=()=>{
+    showToast("Passwords are UI-only in this build.");
+    notify("Account","Password options are UI-only in this build.");
+  };
+}
+
+/* -------------------------
+   Glass Panel
+   ------------------------- */
+function renderGlassPanel(panel){
+  if(!panel) return;
+
+  const currentPercent = Math.round((OS.config.glassLevel || 0.8) * 100);
+
+  panel.innerHTML=`
+    <h2>Glass</h2>
+    <div class="settings-section">
+      <div class="setting-group-title">Transparency presets</div>
+      <div class="setting-options">
+        <button class="settings-radio-btn" data-preset="glassy">Glassy</button>
+        <button class="settings-radio-btn" data-preset="balanced">Balanced</button>
+        <button class="settings-radio-btn" data-preset="solid">Solid</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="setting-group-title">Custom level</div>
+      <input type="range" min="0" max="100" value="${currentPercent}" class="glass-slider">
+      <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">
+        Affects taskbar, icons, start menu, folders, context menus, notifications.
+      </div>
+    </div>
+  `;
+
+  const slider = panel.querySelector(".glass-slider");
+
+  function applyGlass(level){
+    const op = Math.max(0.1, level / 100);
+    const iconOp = 0.5 + 0.5 * op;
+    const borderAlpha = 0.3 + 0.4 * op;
+    document.documentElement.style.setProperty("--glass-opacity", op.toString());
+    document.documentElement.style.setProperty("--glass-border-alpha", borderAlpha.toString());
+    document.documentElement.style.setProperty("--icon-glass-opacity", iconOp.toString());
+    OS.config.glassLevel = op;
+    try{ localStorage.setItem("lp-glass", String(op)); }catch(e){}
+    renderTaskbar();
+    const panels = [$("#startMenu .inner"), $("#notifPanel .inner"), $("#ctxMenu .inner")];
+    panels.forEach(p=>{ if(p) p.style.background = `rgba(15,23,42,${op})`; });
+  }
+
+  slider.oninput = () => {
+    const v = Number(slider.value);
+    applyGlass(v);
+    updatePresetActive(v);
+  };
+
+  function updatePresetActive(v){
+    const buttons = panel.querySelectorAll(".settings-radio-btn[data-preset]");
+    buttons.forEach(b=>b.classList.remove("active"));
+
+    if(Math.abs(v-80) <= 6){
+      panel.querySelector('[data-preset="glassy"]')?.classList.add("active");
+    }else if(Math.abs(v-50) <= 6){
+      panel.querySelector('[data-preset="balanced"]')?.classList.add("active");
+    }else if(Math.abs(v-20) <= 6){
+      panel.querySelector('[data-preset="solid"]')?.classList.add("active");
+    }
+  }
+
+  panel.querySelectorAll(".settings-radio-btn[data-preset]").forEach(btn=>{
+    btn.onclick = () => {
+      const preset = btn.dataset.preset;
+      let v = 80;
+      if (preset === "glassy")   v = 80;
+      if (preset === "balanced") v = 50;
+      if (preset === "solid")    v = 20;
+      slider.value = v;
+      applyGlass(v);
+      panel.querySelectorAll(".settings-radio-btn[data-preset]").forEach(x=>x.classList.remove("active"));
+      btn.classList.add("active");
+    };
+  });
+
+  slider.value = currentPercent;
+  applyGlass(currentPercent);
+  updatePresetActive(currentPercent);
+}
+
+/* -------------------------
+   Recycle Bin
+   ------------------------- */
+registerApp("recycle-bin",{
+  title:"Recycle Bin",
+  createContent(){
+    const root=document.createElement("div");
+    root.className="recycle-bin-window";
+    root.innerHTML=`
+      <div class="recycle-bin-header">
+        <button class="theme-btn" id="rbEmpty">Empty Recycle Bin</button>
+      </div>
+      <div class="rb-list" id="rbList"></div>
+    `;
+    root.querySelector("#rbEmpty").onclick=()=>{
+      const count=OS.state.recycleBin.length;
+      OS.state.recycleBin=[];
+      renderRecycleBinList();
+      notify("Recycle Bin",`Emptied (${count} item${count===1?"":"s"})`);
+      showToast(`Recycle Bin emptied (${count})`);
+    };
+    renderRecycleBinList();
+    return root;
+  }
+});
+
+function moveToRecycleBin(icon){
+  OS.state.recycleBin.push({
+    name:icon.name,
+    appId:icon.appId,
+    time:new Date()
+  });
+}
+
+function renderRecycleBinList(){
+  const list=$("#rbList");
+  if(!list) return;
+  list.innerHTML="";
+  if(OS.state.recycleBin.length===0){
+    list.innerHTML=`<div class="rb-empty-msg">Recycle Bin is empty.</div>`;
+    return;
+  }
+  OS.state.recycleBin.forEach((item,idx)=>{
+    const row=document.createElement("div");
+    row.className="rb-item";
+    const time=item.time.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});
+    row.innerHTML=`
+      <div>${item.name} <span style="font-size:11px;color:var(--text-sub);">(${time})</span></div>
+      <div class="rb-item-actions">
+        <button data-restore="${idx}">Restore</button>
+        <button data-delete="${idx}">Delete</button>
+      </div>
+    `;
+    row.querySelector(`[data-restore]`).onclick=()=>{
+      const it=OS.state.recycleBin[idx];
+      OS.state.desktopIcons.push({
+        id:"restored-"+Date.now(),
+        name:it.name,
+        appId:it.appId,
+        x:120,y:40,selected:false,type:"shortcut"
+      });
+      OS.state.recycleBin.splice(idx,1);
+      renderRecycleBinList();
+      renderDesktopIcons();
+    };
+    row.querySelector(`[data-delete]`).onclick=()=>{
+      OS.state.recycleBin.splice(idx,1);
+      renderRecycleBinList();
+    };
+    list.appendChild(row);
+  });
+}
+
+/* -------------------------
+   This PC
+   ------------------------- */
+registerApp("thispc",{
+  title:"This PC",
+  createContent(){
+    const root=document.createElement("div");
+    root.className="thispc-app";
+    root.innerHTML=`
+      <div class="thispc-nav">
+        <div class="thispc-nav-item" data-view="system">System</div>
+        <div class="thispc-nav-item" data-view="storage">Storage</div>
+        <div class="thispc-nav-item" data-view="apps">Apps</div>
+      </div>
+      <div class="thispc-main" id="thispc-main"></div>
+    `;
+    setupThisPC(root);
+    return root;
+  }
+});
+
+function setupThisPC(root){
+  const main=root.querySelector("#thispc-main");
+  const items=$$(".thispc-nav-item",root);
+  items.forEach(it=>{
+    it.onclick=()=>{
+      items.forEach(i=>i.classList.remove("active"));
+      it.classList.add("active");
+      renderThisPCView(it.dataset.view,main);
+    };
+  });
+  items[0].classList.add("active");
+  renderThisPCView("system",main);
+}
+
+function renderThisPCView(view,main){
+  if(view==="system"){
+    main.innerHTML=`
+      <h2>System</h2>
+      <p><strong>OS:</strong> Liquid Plastic OS 1.x</p>
+      <p><strong>CPU:</strong> Virtual Glass Core</p>
+      <p><strong>Memory:</strong> 8 GB</p>
+      <p><strong>Windows:</strong> ${OS.state.windows.length}</p>
+      <p><strong>Desktop Icons:</strong> ${OS.state.desktopIcons.length}</p>
+    `;
+  }else if(view==="storage"){
+    main.innerHTML=`
+      <h2>Storage</h2>
+      <div style
