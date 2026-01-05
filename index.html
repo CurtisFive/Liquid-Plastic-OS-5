@@ -1992,12 +1992,17 @@ function setupLPBrowser(root) {
   });
 
   // ----- URL bar + Go button -----
-  function triggerNavigateFromInput() {
-    const tab = getActiveTab();
-    if (!tab) return;
-    const raw = (urlInput.value || "").trim();
-    navigateTo(tab, raw || "lp://home", { pushHistory: true, updateInput: true });
-  }
+function triggerNavigateFromInput() {
+  const tab = getActiveTab();
+  if (!tab) return;
+
+  const raw = (urlInput.value || "").trim();
+
+  // If the input is empty, do nothing
+  if (!raw) return;
+
+  navigateTo(tab, raw, { pushHistory: true, updateInput: true });
+}
 
   goBtn.onclick = triggerNavigateFromInput;
   urlInput.addEventListener("keydown", (e) => {
