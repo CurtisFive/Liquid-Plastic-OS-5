@@ -355,6 +355,86 @@ body{
 .lock-user-sub{font-size:11px;color:var(--text-sub);}
 #lockHint{margin-top:10px;font-size:11px;color:var(--text-sub);}
 
+  /* -----------------------------------------------------------
+   LPOS Neon Hover Glow — Restored + Extended to Browser UI
+   ----------------------------------------------------------- */
+
+/* Shared transition for all interactive elements */
+button,
+.task-btn,
+.theme-btn,
+.settings-wall-btn,
+.settings-accent-btn,
+.settings-radio-btn,
+.start-tile,
+.tb-app,
+.win-btn,
+.lp-quicklink,
+.lp-ntp-search-btn,
+.browser-go,
+.browser-nav-btn,
+.browser-tab-add,
+.browser-tab-pill:not(.active) {
+  transition:
+    box-shadow .15s,
+    background .15s,
+    border-color .15s,
+    transform .08s;
+}
+
+/* Neon hover glow */
+button:hover,
+.task-btn:hover,
+.theme-btn:hover,
+.settings-wall-btn:hover,
+.settings-accent-btn:hover,
+.settings-radio-btn:hover,
+.start-tile:hover,
+.tb-app:hover,
+.win-btn:hover,
+.lp-quicklink:hover,
+.lp-ntp-search-btn:hover,
+.browser-go:hover,
+.browser-nav-btn:hover,
+.browser-tab-add:hover,
+.browser-tab-pill:not(.active):hover {
+  box-shadow: 0 0 18px rgba(59,130,246,0.95);
+  border-color: var(--accent);
+  background: rgba(37,99,235,0.12);
+  transform: translateY(-1px);
+}
+
+/* Quick links need a border for the glow to show */
+.lp-quicklink {
+  border: 1px solid rgba(55,65,81,0.9);
+}
+
+/* Search button */
+.lp-ntp-search-btn {
+  border: 1px solid rgba(55,65,81,0.95);
+}
+
+/* Browser Go button */
+.browser-go {
+  border: 1px solid rgba(55,65,81,0.95);
+}
+
+/* Back / Forward / Refresh buttons */
+.browser-nav-btn {
+  border: 1px solid rgba(55,65,81,0.95);
+}
+
+/* New tab button */
+.browser-tab-add {
+  border: 1px solid rgba(75,85,99,0.9);
+}
+
+/* Inactive tabs get glow on hover */
+.browser-tab-pill:not(.active) {
+  border: 1px solid rgba(148,163,184,0.7);
+  background: rgba(15,23,42,0.96);
+}
+
 /* End CSS */
 </style>
 </head>
@@ -1127,12 +1207,19 @@ registerApp("browser", {
     const style = document.createElement("style");
     style.textContent = `
       .browser-tabs {
-        display:inline-flex;
-        align-items:center;
-        gap:4px;
-        max-width:180px;
-        overflow:hidden;
-      }
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 180px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox */
+}
+
+.browser-tabs::-webkit-scrollbar {
+  display: none; /* Chrome/Edge */
+}
+
       .browser-tab-pill {
         padding:2px 8px;
         border-radius:999px;
