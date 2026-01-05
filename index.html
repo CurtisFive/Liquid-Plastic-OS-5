@@ -1168,7 +1168,7 @@ function openApp(id){
   return win;
 }
 
- /**************** Browser (LPOS JSON search + tabs) ****************/
+/**************** Browser (LPOS JSON search + tabs) ****************/
 
 // TODO: Replace these with your real values
 const LPOS_SEARCH_API_KEY = "AIzaSyArrkHhmK5nxuBukbUk_JJC_fKkOOdNBko";
@@ -1203,166 +1203,257 @@ registerApp("browser", {
       </div>
     `;
 
-    // Minimal extra styling to fit your existing CSS
+    // Browser-specific styling (tabs, nav, NTP, context menu)
     const style = document.createElement("style");
     style.textContent = `
+      /* Tab strip */
       .browser-tabs {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  max-width: 180px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none; /* Firefox */
-}
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        max-width: 220px;
+        overflow-x: auto;
+        overflow-y: visible; /* allow glow + shadows */
+        padding: 2px 0;      /* space for glow */
+        scrollbar-width: none; /* Firefox */
+      }
+      .browser-tabs::-webkit-scrollbar {
+        display: none; /* Chrome/Edge */
+      }
 
-.browser-tabs::-webkit-scrollbar {
-  display: none; /* Chrome/Edge */
-}
-
+      /* Tab pills */
       .browser-tab-pill {
-        padding:2px 8px;
-        border-radius:999px;
-        background:rgba(15,23,42,0.96);
-        border:1px solid rgba(148,163,184,0.7);
-        font-size:11px;
-        cursor:pointer;
-        display:flex;
-        align-items:center;
-        gap:6px;
-        max-width:120px;
-        white-space:nowrap;
-        text-overflow:ellipsis;
-        overflow:hidden;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(15,23,42,0.96);
+        border: 1px solid rgba(148,163,184,0.7);
+        font-size: 11px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        color: var(--text-main);
+
+        /* auto-resize + Edge-style shrinking */
+        flex: 0 1 auto;
+        min-width: 56px;
+        max-width: 140px;
+
+        transition:
+          background .15s,
+          border-color .15s,
+          box-shadow .15s,
+          transform .08s,
+          max-width .15s;
+
+        position: relative;
       }
+
       .browser-tab-pill.active {
-        box-shadow:0 0 0 1px rgba(74,168,255,0.6),
-                   0 0 10px rgba(74,168,255,0.25);
-        border-color:rgba(74,168,255,0.85);
+        box-shadow:
+          0 0 0 1px rgba(74,168,255,0.6),
+          0 0 10px rgba(74,168,255,0.25);
+        border-color: rgba(74,168,255,0.85);
+        background: radial-gradient(circle at top, rgba(56,189,248,0.14), rgba(15,23,42,0.96));
+        max-width: 190px; /* active tab gets more room */
+        font-weight: 600;
       }
+
+      .browser-tab-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Close button: only visible on hover */
       .browser-tab-close {
-        font-size:11px;
-        border:none;
-        background:transparent;
-        color:var(--text-sub);
-        cursor:pointer;
+        font-size: 11px;
+        border: none;
+        background: transparent;
+        color: var(--text-sub);
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .12s;
       }
+      .browser-tab-pill:hover .browser-tab-close {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      /* New tab button */
       .browser-tab-add {
-        height:22px;
-        width:22px;
-        border-radius:999px;
-        border:1px solid rgba(75,85,99,0.9);
-        background:rgba(15,23,42,0.96);
-        color:var(--text-main);
-        font-size:14px;
-        cursor:pointer;
-        margin-right:4px;
+        height: 22px;
+        width: 22px;
+        border-radius: 999px;
+        border: 1px solid rgba(75,85,99,0.9);
+        background: rgba(15,23,42,0.96);
+        color: var(--text-main);
+        font-size: 14px;
+        cursor: pointer;
+        margin-right: 4px;
       }
+
       .browser-inner {
-        display:flex;
-        flex-direction:column;
-        height:100%;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
       }
+
       .browser-navigator {
-        display:flex;
-        gap:4px;
-        margin-bottom:6px;
-        font-size:11px;
+        display: flex;
+        gap: 4px;
+        margin-bottom: 6px;
+        font-size: 11px;
       }
+
       .browser-nav-btn {
-        height:22px;
-        min-width:28px;
-        border-radius:999px;
-        border:1px solid rgba(55,65,81,0.95);
-        background:rgba(17,24,39,0.96);
-        color:var(--text-main);
-        font-size:11px;
-        cursor:pointer;
+        height: 22px;
+        min-width: 28px;
+        border-radius: 999px;
+        border: 1px solid rgba(55,65,81,0.95);
+        background: rgba(17,24,39,0.96);
+        color: var(--text-main);
+        font-size: 11px;
+        cursor: pointer;
       }
+
       .browser-content {
-        flex:1;
-        border-radius:8px;
-        border:1px solid rgba(55,65,81,0.9);
-        background:#020617;
-        overflow:hidden;
-        display:flex;
+        flex: 1;
+        border-radius: 8px;
+        border: 1px solid rgba(55,65,81,0.9);
+        background: #020617;
+        overflow: hidden;
+        display: flex;
       }
+
       .lp-page {
-        flex:1;
-        padding:10px;
-        font-size:13px;
-        overflow:auto;
+        flex: 1;
+        padding: 10px;
+        font-size: 13px;
+        overflow: auto;
       }
+
       .lp-ntp-search {
-        max-width:420px;
-        margin:0 auto 14px auto;
-        display:flex;
-        gap:6px;
+        max-width: 420px;
+        margin: 0 auto 14px auto;
+        display: flex;
+        gap: 6px;
       }
+
       .lp-ntp-search-input {
-        flex:1;
-        border-radius:999px;
-        border:1px solid rgba(75,85,99,0.95);
-        background:rgba(15,23,42,0.95);
-        color:var(--text-main);
-        padding:6px 12px;
-        font-size:13px;
-        outline:none;
+        flex: 1;
+        border-radius: 999px;
+        border: 1px solid rgba(75,85,99,0.95);
+        background: rgba(15,23,42,0.95);
+        color: var(--text-main);
+        padding: 6px 12px;
+        font-size: 13px;
+        outline: none;
       }
+
       .lp-ntp-search-btn {
-        border-radius:999px;
-        border:1px solid rgba(55,65,81,0.95);
-        background:rgba(17,24,39,0.96);
-        color:var(--text-main);
-        padding:6px 12px;
-        font-size:12px;
-        cursor:pointer;
+        border-radius: 999px;
+        border: 1px solid rgba(55,65,81,0.95);
+        background: rgba(17,24,39,0.96);
+        color: var(--text-main);
+        padding: 6px 12px;
+        font-size: 12px;
+        cursor: pointer;
       }
+
       .lp-quicklinks {
-        display:flex;
-        flex-wrap:wrap;
-        justify-content:center;
-        gap:10px;
-        margin-top:10px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 10px;
       }
+
       .lp-quicklink {
-        width:90px;
-        padding:8px 6px;
-        border-radius:12px;
-        border:1px solid rgba(55,65,81,0.9);
-        background:rgba(15,23,42,0.96);
-        text-align:center;
-        font-size:11px;
-        cursor:pointer;
+        width: 90px;
+        padding: 8px 6px;
+        border-radius: 12px;
+        border: 1px solid rgba(55,65,81,0.9);
+        background: rgba(15,23,42,0.96);
+        text-align: center;
+        font-size: 11px;
+        cursor: pointer;
       }
+
       .lp-quicklink-icon {
-        width:26px;
-        height:26px;
-        border-radius:999px;
-        margin:0 auto 4px auto;
-        background:conic-gradient(from 220deg,#22c55e,#4aa8ff,#f97316,#e11d48);
+        width: 26px;
+        height: 26px;
+        border-radius: 999px;
+        margin: 0 auto 4px auto;
+        background: conic-gradient(from 220deg,#22c55e,#4aa8ff,#f97316,#e11d48);
       }
+
       .lp-search-results {
-        margin-top:10px;
-        font-size:13px;
+        margin-top: 10px;
+        font-size: 13px;
       }
+
       .lp-search-result {
-        padding:6px 0;
-        border-bottom:1px solid rgba(31,41,55,0.9);
-        cursor:pointer;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(31,41,55,0.9);
+        cursor: pointer;
       }
+
       .lp-search-result-title {
-        color:#93c5fd;
-        margin-bottom:2px;
+        color: #93c5fd;
+        margin-bottom: 2px;
       }
+
       .lp-search-result-link {
-        font-size:11px;
-        color:var(--text-sub);
-        margin-bottom:2px;
+        font-size: 11px;
+        color: var(--text-sub);
+        margin-bottom: 2px;
       }
+
       .lp-search-result-snippet {
-        font-size:12px;
-        color:var(--text-main);
+        font-size: 12px;
+        color: var(--text-main);
+      }
+
+      /* LPOS-style glassy tab context menu */
+      .lp-tab-context-menu {
+        position: fixed;
+        z-index: 999999;
+        min-width: 140px;
+        border-radius: 10px;
+        padding: 4px;
+        background: radial-gradient(circle at top left, rgba(148,163,255,0.28), rgba(15,23,42,0.96));
+        border: 1px solid rgba(148,163,184,0.75);
+        box-shadow:
+          0 22px 65px rgba(15,23,42,0.95),
+          0 0 0 1px rgba(15,23,42,0.9);
+        backdrop-filter: blur(18px);
+        color: var(--text-main);
+        font-size: 12px;
+      }
+
+      .lp-tab-context-item {
+        padding: 5px 9px;
+        border-radius: 7px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--text-main);
+      }
+
+      .lp-tab-context-item:hover {
+        background: rgba(37,99,235,0.20);
+        box-shadow: 0 0 12px rgba(59,130,246,0.75);
+      }
+
+      .lp-tab-context-item span {
+        font-size: 12px;
       }
     `;
     root.appendChild(style);
@@ -1475,6 +1566,81 @@ function setupLPBrowser(root) {
   let activeTabId = null;
   let nextTabId = 1;
 
+  // Context menu state
+  let tabContextMenuEl = null;
+  let contextMenuTabId = null;
+
+  // ----- Context menu helpers -----
+  function hideTabContextMenu() {
+    if (tabContextMenuEl) {
+      tabContextMenuEl.remove();
+      tabContextMenuEl = null;
+      contextMenuTabId = null;
+    }
+  }
+
+  function showTabContextMenu(x, y, tabId) {
+    hideTabContextMenu();
+    contextMenuTabId = tabId;
+
+    tabContextMenuEl = document.createElement("div");
+    tabContextMenuEl.className = "lp-tab-context-menu";
+    tabContextMenuEl.innerHTML = `
+      <div class="lp-tab-context-item" data-action="close">
+        <span>Close tab</span>
+      </div>
+    `;
+
+    document.body.appendChild(tabContextMenuEl);
+
+    const menuRect = tabContextMenuEl.getBoundingClientRect();
+    let posX = x;
+    let posY = y;
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    if (posX + menuRect.width > vw - 8) posX = vw - menuRect.width - 8;
+    if (posY + menuRect.height > vh - 8) posY = vh - menuRect.height - 8;
+
+    tabContextMenuEl.style.left = posX + "px";
+    tabContextMenuEl.style.top  = posY + "px";
+
+    tabContextMenuEl.addEventListener("click", (e) => {
+      const item = e.target.closest(".lp-tab-context-item");
+      if (!item) return;
+      const action = item.getAttribute("data-action");
+      if (action === "close" && contextMenuTabId) {
+        closeTab(contextMenuTabId);
+      }
+      hideTabContextMenu();
+    });
+
+    // Close on click outside
+    setTimeout(() => {
+      const closeHandler = (ev) => {
+        if (!tabContextMenuEl) {
+          document.removeEventListener("mousedown", closeHandler);
+          return;
+        }
+        if (!tabContextMenuEl.contains(ev.target)) {
+          hideTabContextMenu();
+          document.removeEventListener("mousedown", closeHandler);
+        }
+      };
+      document.addEventListener("mousedown", closeHandler);
+    }, 0);
+
+    // Close on Escape
+    const escHandler = (ev) => {
+      if (ev.key === "Escape") {
+        hideTabContextMenu();
+        document.removeEventListener("keydown", escHandler);
+      }
+    };
+    document.addEventListener("keydown", escHandler);
+  }
+
   function createTab(initialUrl = "lp://home") {
     const id = "tab-" + (nextTabId++);
     const tab = {
@@ -1496,6 +1662,7 @@ function setupLPBrowser(root) {
 
   function renderTabs() {
     tabsEl.innerHTML = "";
+
     tabs.forEach(tab => {
       const pill = document.createElement("div");
       pill.className = "browser-tab-pill" + (tab.id === activeTabId ? " active" : "");
@@ -1504,16 +1671,66 @@ function setupLPBrowser(root) {
         <span class="browser-tab-title">${tab.title || "New Tab"}</span>
         <button class="browser-tab-close" title="Close tab">×</button>
       `;
+
+      // Left click: activate tab
       pill.addEventListener("click", (e) => {
         if (e.target.closest(".browser-tab-close")) return;
         activeTabId = tab.id;
         renderTabs();
         restoreTabView(tab);
       });
+
+      // Close button
       pill.querySelector(".browser-tab-close").addEventListener("click", (e) => {
         e.stopPropagation();
         closeTab(tab.id);
       });
+
+      // Right-click: LPOS-style context menu
+      pill.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        showTabContextMenu(e.clientX, e.clientY, tab.id);
+      });
+
+      // Chrome-style drag-to-reorder (snappy)
+      let isDragging = false;
+      let dragStartX = 0;
+      let dragTabId = null;
+
+      pill.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return; // left button only
+        if (e.target.closest(".browser-tab-close")) return;
+
+        isDragging = true;
+        dragStartX = e.clientX;
+        dragTabId = tab.id;
+        pill.setPointerCapture(e.pointerId);
+      });
+
+      pill.addEventListener("pointerup", (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        pill.releasePointerCapture(e.pointerId);
+
+        // Find which tab we're releasing over
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        const targetPill = el && el.closest(".browser-tab-pill");
+        if (!targetPill) return;
+
+        const fromId = dragTabId;
+        const toId = targetPill.dataset.tabId;
+        if (!fromId || !toId || fromId === toId) return;
+
+        const fromIndex = tabs.findIndex(t => t.id === fromId);
+        const toIndex   = tabs.findIndex(t => t.id === toId);
+        if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return;
+
+        const [moved] = tabs.splice(fromIndex, 1);
+        tabs.splice(toIndex, 0, moved);
+
+        renderTabs();
+      });
+
       tabsEl.appendChild(pill);
     });
 
@@ -1747,12 +1964,12 @@ function setupLPBrowser(root) {
     }
   }
 
-  // Navigation controls
+  // ----- Navigation buttons (back / forward / reload) -----
   navButtons.forEach(btn => {
-    const action = btn.dataset.nav;
     btn.addEventListener("click", () => {
       const tab = getActiveTab();
       if (!tab) return;
+      const action = btn.getAttribute("data-nav");
       if (action === "back") {
         if (tab.historyIndex > 0) {
           tab.historyIndex--;
@@ -1767,18 +1984,20 @@ function setupLPBrowser(root) {
         }
       } else if (action === "reload") {
         const url = tab.history[tab.historyIndex];
-        navigateTo(tab, url, { pushHistory: false, updateInput: false });
+        if (url) {
+          navigateTo(tab, url, { pushHistory: false, updateInput: true });
+        }
       }
     });
   });
 
-  // URL bar + Go
-  const triggerNavigateFromInput = () => {
+  // ----- URL bar + Go button -----
+  function triggerNavigateFromInput() {
     const tab = getActiveTab();
     if (!tab) return;
-    const raw = urlInput.value.trim();
+    const raw = (urlInput.value || "").trim();
     navigateTo(tab, raw || "lp://home", { pushHistory: true, updateInput: true });
-  };
+  }
 
   goBtn.onclick = triggerNavigateFromInput;
   urlInput.addEventListener("keydown", (e) => {
